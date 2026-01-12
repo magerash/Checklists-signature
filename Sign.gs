@@ -4,6 +4,32 @@
  * Clean status feedback without popups
  */
 
+// ============================================
+// CONFIGURATION - Easy to modify
+// ============================================
+const CONFIG = {
+  // Sheet names and ranges
+  SHEET_NAME: 'dt_signs',                     // Main working sheet
+  DATA_RANGE_NAME: 'dt_sign_allData',         // Named range for signature data
+  
+  // Column indexes (1 = A, 2 = B, etc.)
+  CHECKBOX_COLUMN: 4,                         // Column D - Checkbox trigger
+  STATUS_COLUMN: 3,                           // Column C - Status display
+  
+  // Row range for processing
+  START_ROW: 20,                              // First row to process
+  END_ROW: 60,                                // Last row to process
+  
+  // Default texts
+  DEFAULT_STATUS_TEXT: 'Подпись',             // Default text in status column
+  DEFAULT_FONT_COLOR: '#000000',              // Default black color
+  
+  // Status colors
+  COLOR_PROCESSING: '#FFA500',                // Orange for processing
+  COLOR_SUCCESS: '#28a745',                   // Green for success
+  COLOR_ERROR: '#dc3545'                      // Red for error
+};
+
 /**
  * Run this function ONCE to install the trigger
  */
@@ -30,12 +56,19 @@ function onEditInstallable(e) {
   const sheet = e.source.getActiveSheet();
   const range = e.range;
   
-  if (sheet.getName() !== 'dt_signs') return;
-  if (range.getColumn() !== 4) return;
+  // Check if edit is in the correct sheet
+  if (sheet.getName() !== CONFIG.SHEET_NAME) return;
+  
+  // Check if edit is in the checkbox column
+  if (range.getColumn() !== CONFIG.CHECKBOX_COLUMN) return;
+  
+  // Check if checkbox is checked (true)
   if (range.getValue() !== true) return;
   
   const row = range.getRow();
-  if (row < 20) return;
+  
+  // Check if row is within the processing range
+  if (row < CONFIG.START_ROW || row > CONFIG.END_ROW) return;
   
   verifyAndSign(sheet, row);
 }
@@ -44,14 +77,14 @@ function onEditInstallable(e) {
  * Verifies the active user and places their signature
  */
 function verifyAndSign(sheet, row) {
-  const statusCell = sheet.getRange(row, 3); // Column C for status
-  const checkboxCell = sheet.getRange(row, 4);
+  const statusCell = sheet.getRange(row, CONFIG.STATUS_COLUMN);
+  const checkboxCell = sheet.getRange(row, CONFIG.CHECKBOX_COLUMN);
   
   try {
     // ═══════════════════════════════════════════════════════
     // STEP 1: Initialize
     // ═══════════════════════════════════════════════════════
-    setStatus(statusCell, '🔄 Проверка...', '#FFA500');
+    setStatus(statusCell, '🔄 Проверка...', CONFIG.COLOR_PROCESSING);
     
     // ═══════════════════════════════════════════════════════
     // STEP 2: Get active user email
@@ -63,23 +96,30 @@ function verifyAndSign(sheet, row) {
       return;
     }
     
-    setStatus(statusCell, '🔍 Поиск подписи...', '#FFA500');
+    setStatus(statusCell, '🔍 Поиск подписи...', CONFIG.COLOR_PROCESSING);
     
     // ═══════════════════════════════════════════════════════
-    // STEP 3: Search in reference data
+    // STEP 3: Search in reference data using named range
     // ═══════════════════════════════════════════════════════
-    const dataRange = sheet.getRange('A2:D12');
+    const dataRange = sheet.getParent().getRangeByName(CONFIG.DATA_RANGE_NAME);
+    
+    if (!dataRange) {
+      handleError(checkboxCell, statusCell, '❌ Набор данных не найден');
+      return;
+    }
+    
     const data = dataRange.getValues();
     
     let userSignature = null;
     let userName = null;
     
+    // Assuming named range has columns: ID, Name, Email, Signature
     for (let i = 0; i < data.length; i++) {
-      const dataEmail = data[i][2];
+      const dataEmail = data[i][2]; // Email is in 3rd column (index 2)
       
       if (dataEmail && dataEmail.toString().toLowerCase() === activeUserEmail) {
-        userSignature = data[i][3];
-        userName = data[i][1];
+        userSignature = data[i][3]; // Signature is in 4th column (index 3)
+        userName = data[i][1];      // Name is in 2nd column (index 1)
         break;
       }
     }
@@ -89,12 +129,12 @@ function verifyAndSign(sheet, row) {
       return;
     }
     
-    setStatus(statusCell, '🔐 Проверка прав...', '#FFA500');
+    setStatus(statusCell, '🔐 Проверка прав...', CONFIG.COLOR_PROCESSING);
     
     // ═══════════════════════════════════════════════════════
     // STEP 4: Verify signer matches expected person
     // ═══════════════════════════════════════════════════════
-    const expectedName = sheet.getRange(row, 2).getValue();
+    const expectedName = sheet.getRange(row, 2).getValue(); // Column B
     
     if (!nameMatches(expectedName, userName)) {
       handleError(checkboxCell, statusCell, '❌ Нет прав на подпись');
@@ -105,7 +145,7 @@ function verifyAndSign(sheet, row) {
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    setStatus(statusCell, '✔ Подписано: ' + timestamp, '#28a745');
+    setStatus(statusCell, '✅ Подписано: ' + timestamp, CONFIG.COLOR_SUCCESS);
     
   } catch (error) {
     handleError(checkboxCell, statusCell, '❌ Ошибка');
@@ -122,15 +162,16 @@ function setStatus(cell, text, color) {
 }
 
 /**
- * Handles errors: resets checkbox, shows error, resets to "Подпись" after 5 sec
+ * Handles errors: resets checkbox, shows error, resets to default text after 5 sec
  */
 function handleError(checkboxCell, statusCell, errorText) {
   checkboxCell.setValue(false);
-  setStatus(statusCell, errorText, '#dc3545');
+  setStatus(statusCell, errorText, CONFIG.COLOR_ERROR);
   
   // Wait 5 seconds then reset to default text
   Utilities.sleep(5000);
-  statusCell.setValue('Подпись').setFontColor('#000000'); // Default black color
+  statusCell.setValue(CONFIG.DEFAULT_STATUS_TEXT)
+            .setFontColor(CONFIG.DEFAULT_FONT_COLOR);
   SpreadsheetApp.flush();
 }
 
@@ -139,10 +180,43 @@ function handleError(checkboxCell, statusCell, errorText) {
  */
 function nameMatches(shortName, fullName) {
   if (!shortName || !fullName) return false;
+  
   const short = shortName.toString().trim().toLowerCase();
   const full = fullName.toString().trim().toLowerCase();
+  
+  // Exact match
   if (short === full) return true;
-  const shortSurname = short.split(/[\\s\\.]+/)[0];
-  const fullSurname = full.split(/[\\s\\.]+/)[0];
+  
+  // Check surname match (first word)
+  const shortSurname = short.split(/[\s\.]+/)[0];
+  const fullSurname = full.split(/[\s\.]+/)[0];
+  
   return shortSurname === fullSurname;
+}
+
+/**
+ * Test function to verify configuration
+ */
+function testConfiguration() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  
+  if (!sheet) {
+    throw new Error(`Sheet "${CONFIG.SHEET_NAME}" not found!`);
+  }
+  
+  const dataRange = ss.getRangeByName(CONFIG.DATA_RANGE_NAME);
+  if (!dataRange) {
+    throw new Error(`Named range "${CONFIG.DATA_RANGE_NAME}" not found!`);
+  }
+  
+  console.log('Configuration test passed:');
+  console.log(`- Sheet: ${CONFIG.SHEET_NAME} ✓`);
+  console.log(`- Named range: ${CONFIG.DATA_RANGE_NAME} ✓`);
+  console.log(`- Data range size: ${dataRange.getNumRows()} rows x ${dataRange.getNumColumns()} columns`);
+  console.log(`- Processing rows: ${CONFIG.START_ROW} to ${CONFIG.END_ROW}`);
+  console.log(`- Checkbox column: ${String.fromCharCode(64 + CONFIG.CHECKBOX_COLUMN)}`);
+  console.log(`- Status column: ${String.fromCharCode(64 + CONFIG.STATUS_COLUMN)}`);
+  
+  SpreadsheetApp.getActiveSpreadsheet().toast('Конфигурация проверена успешно!', '✓ Тест', 5);
 }

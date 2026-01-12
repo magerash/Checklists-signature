@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Конфигурация подписи</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 100%;
+    }
+    
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 24px;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+    
+    .section {
+      background-color: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+      color: #3498db;
+      margin-bottom: 15px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .section-title i {
+      font-size: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #555;
+      font-size: 14px;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="color"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+    
+    .color-input-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .color-input-group input[type="color"] {
+      width: 50px;
+      height: 40px;
+      padding: 2px;
+      cursor: pointer;
+    }
+    
+    .color-input-group input[type="text"] {
+      flex: 1;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    #saveBtn {
+      background-color: #2ecc71;
+      color: white;
+    }
+    
+    #saveBtn:hover {
+      background-color: #27ae60;
+    }
+    
+    #resetBtn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    #resetBtn:hover {
+      background-color: #c0392b;
+    }
+    
+    #testBtn {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    #testBtn:hover {
+      background-color: #2980b9;
+    }
+    
+    .status-message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    
+    .info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      display: block;
+    }
+    
+    .note {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 5px;
+      font-style: italic;
+    }
+    
+    .column-info {
+      font-size: 12px;
+      color: #3498db;
+      margin-left: 5px;
+      font-weight: normal;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ Конфигурация системы подписи</h1>
+    
+    <div class="section">
+      <div class="section-title">
+        📋 Основные параметры
+      </div>
+      
+      <div class="form-group">
+        <label for="SHEET_NAME">Имя рабочего листа:</label>
+        <input type="text" id="SHEET_NAME" name="SHEET_NAME" placeholder="dt_signs">
+        <div class="note">Лист, на котором находится таблица с подписями</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="DATA_RANGE_NAME">Именованный диапазон данных:</label>
+        <input type="text" id="DATA_RANGE_NAME" name="DATA_RANGE_NAME" placeholder="dt_sign_allData">
+        <div class="note">Именованный диапазон, содержащий данные о пользователях и подписях</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        📊 Столбцы
+      </div>
+      
+      <div class="form-group">
+        <label for="CHECKBOX_COLUMN">
+          Столбец с чекбоксом <span class="column-info">(номер: A=1, B=2, ...)</span>:
+        </label>
+        <input type="number" id="CHECKBOX_COLUMN" name="CHECKBOX_COLUMN" min="1" max="26">
+        <div class="note">Столбец, в котором находятся чекбоксы для запуска подписи</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="STATUS_COLUMN">
+          Столбец со статусом <span class="column-info">(номер: A=1, B=2, ...)</span>:
+        </label>
+        <input type="number" id="STATUS_COLUMN" name="STATUS_COLUMN" min="1" max="26">
+        <div class="note">Столбец, в котором отображается статус подписи</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        📈 Диапазон строк
+      </div>
+      
+      <div class="form-group">
+        <label for="START_ROW">Начальная строка обработки:</label>
+        <input type="number" id="START_ROW" name="START_ROW" min="1">
+        <div class="note">Первая строка, в которой активируется обработка чекбокса</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="END_ROW">Конечная строка обработки:</label>
+        <input type="number" id="END_ROW" name="END_ROW" min="1">
+        <div class="note">Последняя строка, в которой активируется обработка чекбокса</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        ✏️ Текст по умолчанию
+      </div>
+      
+      <div class="form-group">
+        <label for="DEFAULT_STATUS_TEXT">Текст по умолчанию в столбце статуса:</label>
+        <input type="text" id="DEFAULT_STATUS_TEXT" name="DEFAULT_STATUS_TEXT" placeholder="Подпись">
+        <div class="note">Текст, который отображается в столбце статуса по умолчанию</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="DEFAULT_FONT_COLOR">Цвет текста по умолчанию:</label>
+        <div class="color-input-group">
+          <input type="color" id="DEFAULT_FONT_COLOR" name="DEFAULT_FONT_COLOR">
+          <input type="text" id="DEFAULT_FONT_COLOR_HEX" name="DEFAULT_FONT_COLOR_HEX" placeholder="#000000">
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        🎨 Цвета статусов
+      </div>
+      
+      <div class="form-group">
+        <label for="COLOR_PROCESSING">Цвет процесса (проверка):</label>
+        <div class="color-input-group">
+          <input type="color" id="COLOR_PROCESSING" name="COLOR_PROCESSING">
+          <input type="text" id="COLOR_PROCESSING_HEX" name="COLOR_PROCESSING_HEX" placeholder="#FFA500">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="COLOR_SUCCESS">Цвет успеха:</label>
+        <div class="color-input-group">
+          <input type="color" id="COLOR_SUCCESS" name="COLOR_SUCCESS">
+          <input type="text" id="COLOR_SUCCESS_HEX" name="COLOR_SUCCESS_HEX" placeholder="#28a745">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="COLOR_ERROR">Цвет ошибки:</label>
+        <div class="color-input-group">
+          <input type="color" id="COLOR_ERROR" name="COLOR_ERROR">
+          <input type="text" id="COLOR_ERROR_HEX" name="COLOR_ERROR_HEX" placeholder="#dc3545">
+        </div>
+      </div>
+    </div>
+    
+    <div class="buttons">
+      <button id="saveBtn">💾 Сохранить</button>
+      <button id="resetBtn">🔄 Сбросить</button>
+      <button id="testBtn">✅ Проверить</button>
+    </div>
+    
+    <div id="statusMessage" class="status-message"></div>
+  </div>
+
+  <script>
+    // Load configuration when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      loadConfiguration();
+      setupEventListeners();
+    });
+    
+    function loadConfiguration() {
+      google.script.run
+        .withSuccessHandler(function(config) {
+          // Fill form with current configuration
+          document.getElementById('SHEET_NAME').value = config.SHEET_NAME || '';
+          document.getElementById('DATA_RANGE_NAME').value = config.DATA_RANGE_NAME || '';
+          document.getElementById('CHECKBOX_COLUMN').value = config.CHECKBOX_COLUMN || '';
+          document.getElementById('STATUS_COLUMN').value = config.STATUS_COLUMN || '';
+          document.getElementById('START_ROW').value = config.START_ROW || '';
+          document.getElementById('END_ROW').value = config.END_ROW || '';
+          document.getElementById('DEFAULT_STATUS_TEXT').value = config.DEFAULT_STATUS_TEXT || '';
+          document.getElementById('DEFAULT_FONT_COLOR').value = config.DEFAULT_FONT_COLOR || '#000000';
+          document.getElementById('DEFAULT_FONT_COLOR_HEX').value = config.DEFAULT_FONT_COLOR || '#000000';
+          document.getElementById('COLOR_PROCESSING').value = config.COLOR_PROCESSING || '#FFA500';
+          document.getElementById('COLOR_PROCESSING_HEX').value = config.COLOR_PROCESSING || '#FFA500';
+          document.getElementById('COLOR_SUCCESS').value = config.COLOR_SUCCESS || '#28a745';
+          document.getElementById('COLOR_SUCCESS_HEX').value = config.COLOR_SUCCESS || '#28a745';
+          document.getElementById('COLOR_ERROR').value = config.COLOR_ERROR || '#dc3545';
+          document.getElementById('COLOR_ERROR_HEX').value = config.COLOR_ERROR || '#dc3545';
+        })
+        .withFailureHandler(function(error) {
+          showMessage('Ошибка загрузки конфигурации: ' + error.message, 'error');
+        })
+        .loadConfigForPanel();
+    }
+    
+    function setupEventListeners() {
+      // Save button
+      document.getElementById('saveBtn').addEventListener('click', saveConfiguration);
+      
+      // Reset button
+      document.getElementById('resetBtn').addEventListener('click', resetConfiguration);
+      
+      // Test button
+      document.getElementById('testBtn').addEventListener('click', testConfiguration);
+      
+      // Color picker sync with hex input
+      document.getElementById('DEFAULT_FONT_COLOR').addEventListener('input', function(e) {
+        document.getElementById('DEFAULT_FONT_COLOR_HEX').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_PROCESSING').addEventListener('input', function(e) {
+        document.getElementById('COLOR_PROCESSING_HEX').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_SUCCESS').addEventListener('input', function(e) {
+        document.getElementById('COLOR_SUCCESS_HEX').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_ERROR').addEventListener('input', function(e) {
+        document.getElementById('COLOR_ERROR_HEX').value = e.target.value;
+      });
+      
+      // Hex input sync with color picker
+      document.getElementById('DEFAULT_FONT_COLOR_HEX').addEventListener('input', function(e) {
+        document.getElementById('DEFAULT_FONT_COLOR').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_PROCESSING_HEX').addEventListener('input', function(e) {
+        document.getElementById('COLOR_PROCESSING').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_SUCCESS_HEX').addEventListener('input', function(e) {
+        document.getElementById('COLOR_SUCCESS').value = e.target.value;
+      });
+      
+      document.getElementById('COLOR_ERROR_HEX').addEventListener('input', function(e) {
+        document.getElementById('COLOR_ERROR').value = e.target.value;
+      });
+    }
+    
+    function saveConfiguration() {
+      const config = {
+        SHEET_NAME: document.getElementById('SHEET_NAME').value,
+        DATA_RANGE_NAME: document.getElementById('DATA_RANGE_NAME').value,
+        CHECKBOX_COLUMN: parseInt(document.getElementById('CHECKBOX_COLUMN').value),
+        STATUS_COLUMN: parseInt(document.getElementById('STATUS_COLUMN').value),
+        START_ROW: parseInt(document.getElementById('START_ROW').value),
+        END_ROW: parseInt(document.getElementById('END_ROW').value),
+        DEFAULT_STATUS_TEXT: document.getElementById('DEFAULT_STATUS_TEXT').value,
+        DEFAULT_FONT_COLOR: document.getElementById('DEFAULT_FONT_COLOR').value,
+        COLOR_PROCESSING: document.getElementById('COLOR_PROCESSING').value,
+        COLOR_SUCCESS: document.getElementById('COLOR_SUCCESS').value,
+        COLOR_ERROR: document.getElementById('COLOR_ERROR').value
+      };
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          showMessage(response.message, 'success');
+        })
+        .withFailureHandler(function(error) {
+          showMessage('Ошибка сохранения: ' + error.message, 'error');
+        })
+        .saveConfig(config);
+    }
+    
+    function resetConfiguration() {
+      if (confirm('Вы уверены, что хотите сбросить настройки к значениям по умолчанию?')) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            showMessage(response.message, 'success');
+            // Reload configuration after reset
+            setTimeout(loadConfiguration, 1000);
+          })
+          .withFailureHandler(function(error) {
+            showMessage('Ошибка сброса: ' + error.message, 'error');
+          })
+          .resetConfig();
+      }
+    }
+    
+    function testConfiguration() {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            const details = response.details;
+            const message = `Конфигурация проверена успешно!\n\n` +
+                           `📄 Лист: ${details.sheet}\n` +
+                           `📊 Диапазон данных: ${details.dataRange}\n` +
+                           `📈 Строки: ${details.rows}\n` +
+                           `✅ Столбец чекбокса: ${details.checkboxColumn}\n` +
+                           `📋 Столбец статуса: ${details.statusColumn}`;
+            showMessage(message, 'info');
+          } else {
+            showMessage('Ошибка проверки конфигурации', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showMessage('Ошибка проверки: ' + error.message, 'error');
+        })
+        .testConfiguration();
+    }
+    
+    function showMessage(message, type) {
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.textContent = message;
+      statusDiv.className = 'status-message ' + type;
+      statusDiv.style.display = 'block';
+      
+      // Auto-hide success messages after 5 seconds
+      if (type === 'success') {
+        setTimeout(function() {
+          statusDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+  </script>
+</body>
+</html>
