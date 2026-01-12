@@ -134,15 +134,6 @@
       background-color: #c0392b;
     }
     
-    #testBtn {
-      background-color: #3498db;
-      color: white;
-    }
-    
-    #testBtn:hover {
-      background-color: #2980b9;
-    }
-    
     .status-message {
       margin-top: 15px;
       padding: 10px;
@@ -302,7 +293,6 @@
     <div class="buttons">
       <button id="saveBtn">💾 Сохранить</button>
       <button id="resetBtn">🔄 Сбросить</button>
-      <button id="testBtn">✅ Проверить</button>
     </div>
     
     <div id="statusMessage" class="status-message"></div>
@@ -347,9 +337,6 @@
       
       // Reset button
       document.getElementById('resetBtn').addEventListener('click', resetConfiguration);
-      
-      // Test button
-      document.getElementById('testBtn').addEventListener('click', testConfiguration);
       
       // Color picker sync with hex input
       document.getElementById('DEFAULT_FONT_COLOR').addEventListener('input', function(e) {
@@ -424,28 +411,6 @@
           })
           .resetConfig();
       }
-    }
-    
-    function testConfiguration() {
-      google.script.run
-        .withSuccessHandler(function(response) {
-          if (response.success) {
-            const details = response.details;
-            const message = `Конфигурация проверена успешно!\n\n` +
-                           `📄 Лист: ${details.sheet}\n` +
-                           `📊 Диапазон данных: ${details.dataRange}\n` +
-                           `📈 Строки: ${details.rows}\n` +
-                           `✅ Столбец чекбокса: ${details.checkboxColumn}\n` +
-                           `📋 Столбец статуса: ${details.statusColumn}`;
-            showMessage(message, 'info');
-          } else {
-            showMessage('Ошибка проверки конфигурации', 'error');
-          }
-        })
-        .withFailureHandler(function(error) {
-          showMessage('Ошибка проверки: ' + error.message, 'error');
-        })
-        .testConfiguration();
     }
     
     function showMessage(message, type) {
