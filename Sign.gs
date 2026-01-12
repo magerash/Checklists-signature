@@ -44,7 +44,7 @@ function onEditInstallable(e) {
  * Verifies the active user and places their signature
  */
 function verifyAndSign(sheet, row) {
-  const statusCell = sheet.getRange(row, 5);
+  const statusCell = sheet.getRange(row, 3); // Column C for status
   const checkboxCell = sheet.getRange(row, 4);
   
   try {
@@ -104,10 +104,8 @@ function verifyAndSign(sheet, row) {
     // ═══════════════════════════════════════════════════════
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
-    sheet.getRange(row, 3).setValue(userSignature);
-    
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    setStatus(statusCell, '✔ ' + timestamp, '#28a745');
+    setStatus(statusCell, '✔ Подписано: ' + timestamp, '#28a745');
     
   } catch (error) {
     handleError(checkboxCell, statusCell, '❌ Ошибка');
@@ -124,15 +122,15 @@ function setStatus(cell, text, color) {
 }
 
 /**
- * Handles errors: resets checkbox, shows error, clears after 5 sec
+ * Handles errors: resets checkbox, shows error, resets to "Подпись" after 5 sec
  */
 function handleError(checkboxCell, statusCell, errorText) {
   checkboxCell.setValue(false);
   setStatus(statusCell, errorText, '#dc3545');
   
-  // Wait 5 seconds then clear the error
+  // Wait 5 seconds then reset to default text
   Utilities.sleep(5000);
-  statusCell.clearContent();
+  statusCell.setValue('Подпись').setFontColor('#000000'); // Default black color
   SpreadsheetApp.flush();
 }
 
