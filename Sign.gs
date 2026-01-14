@@ -220,7 +220,7 @@ function verifyAndSign(sheet, row, config) {
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    setStatus(statusCell, '✅ Подписано: ' + timestamp, config.COLOR_SUCCESS);
+    setStatus(statusCell, 'Подписано: ' + timestamp, config.COLOR_SUCCESS);
     
   } catch (error) {
     handleError(checkboxCell, statusCell, '❌ Ошибка', config);
