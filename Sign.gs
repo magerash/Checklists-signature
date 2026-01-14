@@ -9,20 +9,20 @@
 // ============================================
 const CONFIG = {
   // Sheet names and ranges
-  SHEET_NAME: 'dt_signs',                     // Main working sheet
+  SHEET_NAME: 'II. Чек-лист стадии концепции',  // Main working sheet
   DATA_RANGE_NAME: 'dt_sign_allData',         // Named range for signature data
   
   // Column indexes (1 = A, 2 = B, etc.)
-  CHECKBOX_COLUMN: 4,                         // Column D - Checkbox trigger
-  STATUS_COLUMN: 3,                           // Column C - Status display
+  CHECKBOX_COLUMNS: '12,22',                      // Column(s) with checkboxes
+  STATUS_COLUMNS: '11,21',                        // Column(s) for status display
+  NAME_COLUMNS: '10,20',                          // NEW: Column(s) for name verification
   
   // Row range for processing
-  START_ROW: 20,                              // First row to process
-  END_ROW: 60,                                // Last row to process
+  ROW_RANGES: '5-13',                        // Row range(s) for processing
   
   // Default texts
   DEFAULT_STATUS_TEXT: 'Подпись',             // Default text in status column
-  DEFAULT_FONT_COLOR: '#000000',              // Default black color
+  DEFAULT_FONT_COLOR: '#999999',              // Default gray color
   
   // Status colors
   COLOR_PROCESSING: '#FFA500',                // Orange for processing
@@ -30,20 +30,102 @@ const CONFIG = {
   COLOR_ERROR: '#dc3545'                      // Red for error
 };
 
-// Property keys for storage
 const PROPERTY_KEYS = {
   SHEET_NAME: 'SHEET_NAME',
   DATA_RANGE_NAME: 'DATA_RANGE_NAME',
-  CHECKBOX_COLUMN: 'CHECKBOX_COLUMN',
-  STATUS_COLUMN: 'STATUS_COLUMN',
-  START_ROW: 'START_ROW',
-  END_ROW: 'END_ROW',
+  CHECKBOX_COLUMNS: 'CHECKBOX_COLUMNS',
+  STATUS_COLUMNS: 'STATUS_COLUMNS',
+  NAME_COLUMNS: 'NAME_COLUMNS',  // NEW
+  ROW_RANGES: 'ROW_RANGES',
   DEFAULT_STATUS_TEXT: 'DEFAULT_STATUS_TEXT',
   DEFAULT_FONT_COLOR: 'DEFAULT_FONT_COLOR',
   COLOR_PROCESSING: 'COLOR_PROCESSING',
   COLOR_SUCCESS: 'COLOR_SUCCESS',
   COLOR_ERROR: 'COLOR_ERROR'
 };
+
+/**
+ * Helper function to parse comma-separated or range strings into arrays
+ * Supports formats like: "4", "4,5,6", "4-6", "20-30,35-40"
+ */
+function parseRangeString(rangeString) {
+  if (!rangeString) return [];
+  
+  const result = [];
+  const parts = rangeString.split(',').map(part => part.trim());
+  
+  for (const part of parts) {
+    if (part.includes('-')) {
+      // Handle range like "20-30"
+      const [start, end] = part.split('-').map(num => parseInt(num.trim()));
+      if (!isNaN(start) && !isNaN(end) && start <= end) {
+        for (let i = start; i <= end; i++) {
+          result.push(i);
+        }
+      }
+    } else {
+      // Handle single number
+      const num = parseInt(part);
+      if (!isNaN(num)) {
+        result.push(num);
+      }
+    }
+  }
+  
+  // Remove duplicates and sort
+  return [...new Set(result)].sort((a, b) => a - b);
+}
+
+/**
+ * Helper function to check if a value is in any of the parsed ranges
+ */
+function isInRanges(value, rangeString) {
+  const ranges = parseRangeString(rangeString);
+  return ranges.includes(value);
+}
+
+/**
+ * Helper function to get corresponding status column for a checkbox column
+ * Assumes checkbox and status columns are paired in order
+ */
+function getStatusColumnForCheckbox(checkboxColumn, config) {
+  const checkboxCols = parseRangeString(config.CHECKBOX_COLUMNS);
+  const statusCols = parseRangeString(config.STATUS_COLUMNS);
+  
+  const index = checkboxCols.indexOf(checkboxColumn);
+  if (index !== -1 && index < statusCols.length) {
+    return statusCols[index];
+  }
+  
+  // Fallback: if only one status column defined, use it for all checkboxes
+  if (statusCols.length === 1) {
+    return statusCols[0];
+  }
+  
+  // Default: assume status column is checkbox column - 1
+  return checkboxColumn - 1;
+}
+
+/**
+ * Helper function to get corresponding name column for a checkbox column
+ */
+function getNameColumnForCheckbox(checkboxColumn, config) {
+  const checkboxCols = parseRangeString(config.CHECKBOX_COLUMNS);
+  const nameCols = parseRangeString(config.NAME_COLUMNS);
+  
+  const index = checkboxCols.indexOf(checkboxColumn);
+  if (index !== -1 && index < nameCols.length) {
+    return nameCols[index];
+  }
+  
+  // Fallback: if only one name column defined, use it for all checkboxes
+  if (nameCols.length === 1) {
+    return nameCols[0];
+  }
+  
+  // Default: assume name column is checkbox column - 2 (as per your requirement)
+  return checkboxColumn - 2;
+}
 
 /**
  * Gets configuration - reads from Properties or uses defaults
@@ -55,10 +137,10 @@ function getConfig() {
   // Read all properties or use defaults
   config.SHEET_NAME = scriptProperties.getProperty(PROPERTY_KEYS.SHEET_NAME) || CONFIG.SHEET_NAME;
   config.DATA_RANGE_NAME = scriptProperties.getProperty(PROPERTY_KEYS.DATA_RANGE_NAME) || CONFIG.DATA_RANGE_NAME;
-  config.CHECKBOX_COLUMN = parseInt(scriptProperties.getProperty(PROPERTY_KEYS.CHECKBOX_COLUMN)) || CONFIG.CHECKBOX_COLUMN;
-  config.STATUS_COLUMN = parseInt(scriptProperties.getProperty(PROPERTY_KEYS.STATUS_COLUMN)) || CONFIG.STATUS_COLUMN;
-  config.START_ROW = parseInt(scriptProperties.getProperty(PROPERTY_KEYS.START_ROW)) || CONFIG.START_ROW;
-  config.END_ROW = parseInt(scriptProperties.getProperty(PROPERTY_KEYS.END_ROW)) || CONFIG.END_ROW;
+  config.CHECKBOX_COLUMNS = scriptProperties.getProperty(PROPERTY_KEYS.CHECKBOX_COLUMNS) || CONFIG.CHECKBOX_COLUMNS;
+  config.STATUS_COLUMNS = scriptProperties.getProperty(PROPERTY_KEYS.STATUS_COLUMNS) || CONFIG.STATUS_COLUMNS;
+  config.NAME_COLUMNS = scriptProperties.getProperty(PROPERTY_KEYS.NAME_COLUMNS) || CONFIG.NAME_COLUMNS;  // NEW
+  config.ROW_RANGES = scriptProperties.getProperty(PROPERTY_KEYS.ROW_RANGES) || CONFIG.ROW_RANGES;
   config.DEFAULT_STATUS_TEXT = scriptProperties.getProperty(PROPERTY_KEYS.DEFAULT_STATUS_TEXT) || CONFIG.DEFAULT_STATUS_TEXT;
   config.DEFAULT_FONT_COLOR = scriptProperties.getProperty(PROPERTY_KEYS.DEFAULT_FONT_COLOR) || CONFIG.DEFAULT_FONT_COLOR;
   config.COLOR_PROCESSING = scriptProperties.getProperty(PROPERTY_KEYS.COLOR_PROCESSING) || CONFIG.COLOR_PROCESSING;
@@ -77,10 +159,10 @@ function saveConfig(newConfig) {
   // Save all properties
   scriptProperties.setProperty(PROPERTY_KEYS.SHEET_NAME, newConfig.SHEET_NAME);
   scriptProperties.setProperty(PROPERTY_KEYS.DATA_RANGE_NAME, newConfig.DATA_RANGE_NAME);
-  scriptProperties.setProperty(PROPERTY_KEYS.CHECKBOX_COLUMN, newConfig.CHECKBOX_COLUMN.toString());
-  scriptProperties.setProperty(PROPERTY_KEYS.STATUS_COLUMN, newConfig.STATUS_COLUMN.toString());
-  scriptProperties.setProperty(PROPERTY_KEYS.START_ROW, newConfig.START_ROW.toString());
-  scriptProperties.setProperty(PROPERTY_KEYS.END_ROW, newConfig.END_ROW.toString());
+  scriptProperties.setProperty(PROPERTY_KEYS.CHECKBOX_COLUMNS, newConfig.CHECKBOX_COLUMNS.toString());
+  scriptProperties.setProperty(PROPERTY_KEYS.STATUS_COLUMNS, newConfig.STATUS_COLUMNS.toString());
+  scriptProperties.setProperty(PROPERTY_KEYS.NAME_COLUMNS, newConfig.NAME_COLUMNS.toString());  // NEW
+  scriptProperties.setProperty(PROPERTY_KEYS.ROW_RANGES, newConfig.ROW_RANGES.toString());
   scriptProperties.setProperty(PROPERTY_KEYS.DEFAULT_STATUS_TEXT, newConfig.DEFAULT_STATUS_TEXT);
   scriptProperties.setProperty(PROPERTY_KEYS.DEFAULT_FONT_COLOR, newConfig.DEFAULT_FONT_COLOR);
   scriptProperties.setProperty(PROPERTY_KEYS.COLOR_PROCESSING, newConfig.COLOR_PROCESSING);
@@ -134,26 +216,28 @@ function onEditInstallable(e) {
   // Check if edit is in the correct sheet
   if (sheet.getName() !== config.SHEET_NAME) return;
   
-  // Check if edit is in the checkbox column
-  if (range.getColumn() !== config.CHECKBOX_COLUMN) return;
+  // Check if edit is in one of the checkbox columns
+  const checkboxColumn = range.getColumn();
+  if (!isInRanges(checkboxColumn, config.CHECKBOX_COLUMNS)) return;
   
   // Check if checkbox is checked (true)
   if (range.getValue() !== true) return;
   
   const row = range.getRow();
   
-  // Check if row is within the processing range
-  if (row < config.START_ROW || row > config.END_ROW) return;
+  // Check if row is within the processing ranges
+  if (!isInRanges(row, config.ROW_RANGES)) return;
   
-  verifyAndSign(sheet, row, config);
+  verifyAndSign(sheet, row, checkboxColumn, config);
 }
 
 /**
  * Verifies the active user and places their signature
  */
-function verifyAndSign(sheet, row, config) {
-  const statusCell = sheet.getRange(row, config.STATUS_COLUMN);
-  const checkboxCell = sheet.getRange(row, config.CHECKBOX_COLUMN);
+function verifyAndSign(sheet, row, checkboxColumn, config) {
+  const statusColumn = getStatusColumnForCheckbox(checkboxColumn, config);
+  const statusCell = sheet.getRange(row, statusColumn);
+  const checkboxCell = sheet.getRange(row, checkboxColumn);
   
   try {
     // ═══════════════════════════════════════════════════════
@@ -209,18 +293,24 @@ function verifyAndSign(sheet, row, config) {
     // ═══════════════════════════════════════════════════════
     // STEP 4: Verify signer matches expected person
     // ═══════════════════════════════════════════════════════
-    const expectedName = sheet.getRange(row, 2).getValue(); // Column B
-    
+    const nameColumn = getNameColumnForCheckbox(checkboxColumn, config);
+    const expectedName = sheet.getRange(row, nameColumn).getValue();
+
+    if (!expectedName || expectedName.toString().trim() === '') {
+      handleError(checkboxCell, statusCell, '❌ Имя не указано', config);
+      return;
+    }
+
     if (!nameMatches(expectedName, userName)) {
       handleError(checkboxCell, statusCell, '❌ Нет прав на подпись', config);
       return;
-    }
-    
+    }   
+
     // ═══════════════════════════════════════════════════════
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    setStatus(statusCell, 'Подписано: ' + timestamp, config.COLOR_SUCCESS);
+    setStatus(statusCell, ' ' + timestamp, config.COLOR_SUCCESS);
     
   } catch (error) {
     handleError(checkboxCell, statusCell, '❌ Ошибка', config);
@@ -286,13 +376,18 @@ function testConfiguration() {
     throw new Error(`Named range "${config.DATA_RANGE_NAME}" not found!`);
   }
   
+  // Parse the ranges for display
+  const checkboxCols = parseRangeString(config.CHECKBOX_COLUMNS);
+  const statusCols = parseRangeString(config.STATUS_COLUMNS);
+  const rowRanges = parseRangeString(config.ROW_RANGES);
+  
   console.log('Configuration test passed:');
   console.log(`- Sheet: ${config.SHEET_NAME} ✓`);
   console.log(`- Named range: ${config.DATA_RANGE_NAME} ✓`);
   console.log(`- Data range size: ${dataRange.getNumRows()} rows x ${dataRange.getNumColumns()} columns`);
-  console.log(`- Processing rows: ${config.START_ROW} to ${config.END_ROW}`);
-  console.log(`- Checkbox column: ${String.fromCharCode(64 + config.CHECKBOX_COLUMN)}`);
-  console.log(`- Status column: ${String.fromCharCode(64 + config.STATUS_COLUMN)}`);
+  console.log(`- Checkbox columns: ${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${checkboxCols.join(', ')})`);
+  console.log(`- Status columns: ${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${statusCols.join(', ')})`);
+  console.log(`- Processing rows: ${rowRanges.join(', ')}`);
   
   SpreadsheetApp.getActiveSpreadsheet().toast('Конфигурация проверена успешно!', '✓ Тест', 5);
   
@@ -302,9 +397,9 @@ function testConfiguration() {
     details: {
       sheet: config.SHEET_NAME,
       dataRange: config.DATA_RANGE_NAME,
-      rows: `${config.START_ROW}-${config.END_ROW}`,
-      checkboxColumn: `${String.fromCharCode(64 + config.CHECKBOX_COLUMN)} (${config.CHECKBOX_COLUMN})`,
-      statusColumn: `${String.fromCharCode(64 + config.STATUS_COLUMN)} (${config.STATUS_COLUMN})`
+      checkboxColumns: `${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.CHECKBOX_COLUMNS})`,
+      statusColumns: `${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.STATUS_COLUMNS})`,
+      rowRanges: rowRanges.join(', ') + ` (${config.ROW_RANGES})`
     }
   };
 }
@@ -332,7 +427,7 @@ function onOpen() {
 function showConfigPanel() {
   const html = HtmlService.createHtmlOutputFromFile('ConfigurationPanel')
     .setWidth(500)
-    .setHeight(600)
+    .setHeight(650)
     .setTitle('Конфигурация подписи');
   
   SpreadsheetApp.getUi().showSidebar(html);
