@@ -13,9 +13,9 @@ const CONFIG = {
   DATA_RANGE_NAME: 'dt_sign_allData',         // Named range for signature data
   
   // Column indexes (1 = A, 2 = B, etc.)
-  CHECKBOX_COLUMNS: '12,22',                      // Column(s) with checkboxes
-  STATUS_COLUMNS: '11,21',                        // Column(s) for status display
-  NAME_COLUMNS: '10,20',                          // Column(s) for name verification
+  CHECKBOX_COLUMNS: '13,24',                      // Column(s) with checkboxes
+  STATUS_COLUMNS: '12,23',                        // Column(s) for status display
+  NAME_COLUMNS: '10,21',                          // Column(s) for name verification
   
   // Row range for processing
   ROW_RANGES: '5-13',                        // Row range(s) for processing
@@ -310,28 +310,70 @@ function installTrigger() {
  * Installable onEdit trigger for checkbox handling
  */
 function onEditInstallable(e) {
-  const config = getConfig();
-  const sheet = e.source.getActiveSheet();
-  const range = e.range;
-  
-  // Check if edit is in the correct sheet
-  if (sheet.getName() !== config.SHEET_NAME) return;
-  
-  // Check if edit is in one of the checkbox columns
-  const checkboxColumn = range.getColumn();
-  if (!isInRanges(checkboxColumn, config.CHECKBOX_COLUMNS)) return;
-  
-  const row = range.getRow();
-  
-  // Check if row is within the processing ranges
-  if (!isInRanges(row, config.ROW_RANGES)) return;
-  
-  // Check if checkbox is checked (true) or unchecked (false)
-  if (range.getValue() === true) {
-    verifyAndSign(sheet, row, checkboxColumn, config);
-  } else {
-    // Checkbox was unchecked
-    handleCheckboxUnchecked(sheet, row, checkboxColumn, config);
+  try {
+    console.log('=== onEditInstallable TRIGGERED ===');
+    console.log('Event details:', {
+      sheet: e.source.getActiveSheet().getName(),
+      range: e.range.getA1Notation(),
+      row: e.range.getRow(),
+      column: e.range.getColumn(),
+      value: e.range.getValue()
+    });
+    
+    const config = getConfig();
+    const sheet = e.source.getActiveSheet();
+    const range = e.range;
+    const sheetName = sheet.getName();
+    
+    console.log('Config loaded. Target sheet:', config.SHEET_NAME);
+    console.log('Current sheet:', sheetName);
+    
+    // Check if edit is in the correct sheet
+    if (sheetName !== config.SHEET_NAME) {
+      console.log('❌ Wrong sheet. Expected:', config.SHEET_NAME, 'Got:', sheetName);
+      return;
+    }
+    console.log('✓ Correct sheet');
+    
+    // Check if edit is in one of the checkbox columns
+    const checkboxColumn = range.getColumn();
+    console.log('Checkbox column:', checkboxColumn);
+    console.log('Allowed checkbox columns:', config.CHECKBOX_COLUMNS);
+    
+    if (!isInRanges(checkboxColumn, config.CHECKBOX_COLUMNS)) {
+      console.log('❌ Not a checkbox column');
+      return;
+    }
+    console.log('✓ Valid checkbox column');
+    
+    const row = range.getRow();
+    console.log('Row:', row);
+    console.log('Allowed row ranges:', config.ROW_RANGES);
+    
+    // Check if row is within the processing ranges
+    if (!isInRanges(row, config.ROW_RANGES)) {
+      console.log('❌ Row not in processing range');
+      return;
+    }
+    console.log('✓ Row in processing range');
+    
+    const checkboxValue = range.getValue();
+    console.log('Checkbox value:', checkboxValue);
+    
+    // Check if checkbox is checked (true) or unchecked (false)
+    if (checkboxValue === true) {
+      console.log('✓ Checkbox checked - starting verification...');
+      verifyAndSign(sheet, row, checkboxColumn, config);
+    } else {
+      console.log('✓ Checkbox unchecked - handling uncheck...');
+      handleCheckboxUnchecked(sheet, row, checkboxColumn, config);
+    }
+    
+    console.log('=== onEditInstallable COMPLETED ===');
+    
+  } catch (error) {
+    console.error('❌ ERROR in onEditInstallable:', error);
+    console.error('Stack trace:', error.stack);
   }
 }
 
@@ -340,99 +382,128 @@ function onEditInstallable(e) {
  * Prevents unauthorized deletion/editing of status fields
  */
 function onEditStatusProtection(e) {
-  const config = getConfig();
-  const sheet = e.source.getActiveSheet();
-  const range = e.range;
-  
-  // Check if edit is in the correct sheet
-  if (sheet.getName() !== config.SHEET_NAME) {
-    console.log('Wrong sheet:', sheet.getName());
-    return;
-  }
-  
-  // Check if edit is in one of the status columns
-  const statusColumn = range.getColumn();
-  if (!isInRanges(statusColumn, config.STATUS_COLUMNS)) {
-    console.log('Not a status column:', statusColumn);
-    return;
-  }
-  
-  const row = range.getRow();
-  
-  // Check if row is within the processing ranges
-  if (!isInRanges(row, config.ROW_RANGES)) {
-    console.log('Row not in range:', row);
-    return;
-  }
-  
-  const newValue = range.getValue();
-  console.log('Status edit detected - Row:', row, 'Col:', statusColumn, 'New value:', newValue);
-  
-  // Get cached value
-  const cachedValue = getCachedStatusValue(sheet, row, statusColumn);
-  console.log('Cached value:', cachedValue);
-  
-  // Check if this is a deletion (empty value) or change from a non-default value
-  if (cachedValue && (newValue === '' || newValue === config.DEFAULT_STATUS_TEXT || newValue !== cachedValue)) {
-    // There's a cached value and user is trying to delete or change it
-    console.log('Attempting to change/delete cached value');
+  try {
+    console.log('=== onEditStatusProtection TRIGGERED ===');
+    console.log('Event details:', {
+      sheet: e.source.getActiveSheet().getName(),
+      range: e.range.getA1Notation(),
+      row: e.range.getRow(),
+      column: e.range.getColumn(),
+      value: e.range.getValue()
+    });
     
-    // Check if the user is authorized to make this change
-    const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
-    console.log('User authorized:', isAuthorized);
+    const config = getConfig();
+    const sheet = e.source.getActiveSheet();
+    const range = e.range;
+    const sheetName = sheet.getName();
     
-    if (isAuthorized) {
-      // User is authorized - update cache with new value
-      if (newValue && newValue !== config.DEFAULT_STATUS_TEXT) {
-        cacheStatusValue(sheet, row, statusColumn, newValue);
+    console.log('Config loaded. Target sheet:', config.SHEET_NAME);
+    console.log('Current sheet:', sheetName);
+    
+    // Check if edit is in the correct sheet
+    if (sheetName !== config.SHEET_NAME) {
+      console.log('❌ Wrong sheet. Expected:', config.SHEET_NAME, 'Got:', sheetName);
+      return;
+    }
+    console.log('✓ Correct sheet');
+    
+    // Check if edit is in one of the status columns
+    const statusColumn = range.getColumn();
+    console.log('Status column:', statusColumn);
+    console.log('Allowed status columns:', config.STATUS_COLUMNS);
+    
+    if (!isInRanges(statusColumn, config.STATUS_COLUMNS)) {
+      console.log('❌ Not a status column');
+      return;
+    }
+    console.log('✓ Valid status column');
+    
+    const row = range.getRow();
+    console.log('Row:', row);
+    console.log('Allowed row ranges:', config.ROW_RANGES);
+    
+    // Check if row is within the processing ranges
+    if (!isInRanges(row, config.ROW_RANGES)) {
+      console.log('❌ Row not in processing range');
+      return;
+    }
+    console.log('✓ Row in processing range');
+    
+    const newValue = range.getValue();
+    console.log('New value in status cell:', newValue);
+    
+    // Get cached value
+    const cachedValue = getCachedStatusValue(sheet, row, statusColumn);
+    console.log('Cached value:', cachedValue);
+    
+    // Check if this is a deletion (empty value) or change from a non-default value
+    if (cachedValue && (newValue === '' || newValue === config.DEFAULT_STATUS_TEXT || newValue !== cachedValue)) {
+      // There's a cached value and user is trying to delete or change it
+      console.log('Attempting to change/delete cached value');
+      
+      // Check if the user is authorized to make this change
+      const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
+      console.log('User authorized:', isAuthorized);
+      
+      if (isAuthorized) {
+        // User is authorized - update cache with new value
+        if (newValue && newValue !== config.DEFAULT_STATUS_TEXT) {
+          cacheStatusValue(sheet, row, statusColumn, newValue);
+        } else {
+          cacheStatusValue(sheet, row, statusColumn, null);
+        }
+        console.log('Authorized status change by user');
       } else {
-        cacheStatusValue(sheet, row, statusColumn, null);
+        // User is not authorized - revert to cached value
+        console.log('Unauthorized - reverting to cached value');
+        Utilities.sleep(100); // Small delay to ensure sheet is ready
+        
+        range.setValue(cachedValue);
+        range.setFontColor(config.COLOR_SUCCESS);
+        SpreadsheetApp.flush();
+        
+        // Show minimalistic toast notification
+        SpreadsheetApp.getActiveSpreadsheet().toast(
+          'Нет прав на изменение этой подписи',
+          '❌ Доступ запрещен',
+          3
+        );
       }
-      console.log('Authorized status change by user');
-    } else {
-      // User is not authorized - revert to cached value
-      console.log('Unauthorized - reverting to cached value');
-      Utilities.sleep(100); // Small delay to ensure sheet is ready
+    } else if (!cachedValue && newValue && newValue !== config.DEFAULT_STATUS_TEXT) {
+      // No cached value but user is trying to set a non-default value
+      // Check if they're authorized to set a new signature
+      console.log('Attempting to set new signature');
+      const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
       
-      range.setValue(cachedValue);
-      range.setFontColor(config.COLOR_SUCCESS);
-      SpreadsheetApp.flush();
-      
-      // Show minimalistic toast notification
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        'Нет прав на изменение этой подписи',
-        '❌ Доступ запрещен',
-        3
-      );
+      if (isAuthorized) {
+        // Authorized - cache the new value
+        cacheStatusValue(sheet, row, statusColumn, newValue);
+        console.log('Authorized new signature set');
+      } else {
+        // Not authorized - revert to default
+        console.log('Unauthorized new signature attempt');
+        Utilities.sleep(100);
+        range.setValue(config.DEFAULT_STATUS_TEXT);
+        range.setFontColor(config.DEFAULT_FONT_COLOR);
+        SpreadsheetApp.flush();
+        
+        // Show minimalistic toast notification
+        SpreadsheetApp.getActiveSpreadsheet().toast(
+          'Нет прав на установку подписи',
+          '❌ Доступ запрещен',
+          3
+        );
+      }
+    } else if (!cachedValue && (newValue === '' || newValue === config.DEFAULT_STATUS_TEXT)) {
+      // No cached value and setting to default/empty - allow it
+      console.log('Setting to default/empty - allowed');
     }
-  } else if (!cachedValue && newValue && newValue !== config.DEFAULT_STATUS_TEXT) {
-    // No cached value but user is trying to set a non-default value
-    // Check if they're authorized to set a new signature
-    console.log('Attempting to set new signature');
-    const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
     
-    if (isAuthorized) {
-      // Authorized - cache the new value
-      cacheStatusValue(sheet, row, statusColumn, newValue);
-      console.log('Authorized new signature set');
-    } else {
-      // Not authorized - revert to default
-      console.log('Unauthorized new signature attempt');
-      Utilities.sleep(100);
-      range.setValue(config.DEFAULT_STATUS_TEXT);
-      range.setFontColor(config.DEFAULT_FONT_COLOR);
-      SpreadsheetApp.flush();
-      
-      // Show minimalistic toast notification
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        'Нет прав на установку подписи',
-        '❌ Доступ запрещен',
-        3
-      );
-    }
-  } else if (!cachedValue && (newValue === '' || newValue === config.DEFAULT_STATUS_TEXT)) {
-    // No cached value and setting to default/empty - allow it
-    console.log('Setting to default/empty - allowed');
+    console.log('=== onEditStatusProtection COMPLETED ===');
+    
+  } catch (error) {
+    console.error('❌ ERROR in onEditStatusProtection:', error);
+    console.error('Stack trace:', error.stack);
   }
 }
 
@@ -440,16 +511,23 @@ function onEditStatusProtection(e) {
  * Handles checkbox unchecked - clears the signature if authorized
  */
 function handleCheckboxUnchecked(sheet, row, checkboxColumn, config) {
-  const statusColumn = getStatusColumnForCheckbox(checkboxColumn, config);
-  const statusCell = sheet.getRange(row, statusColumn);
-  const checkboxCell = sheet.getRange(row, checkboxColumn);
-  
   try {
+    console.log('=== handleCheckboxUnchecked STARTED ===');
+    console.log('Row:', row, 'Checkbox column:', checkboxColumn);
+    
+    const statusColumn = getStatusColumnForCheckbox(checkboxColumn, config);
+    const statusCell = sheet.getRange(row, statusColumn);
+    const checkboxCell = sheet.getRange(row, checkboxColumn);
+    
+    console.log('Status column for checkbox:', statusColumn);
+    
     // Check if user is authorized to clear this signature
     const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
+    console.log('User authorized to clear:', isAuthorized);
     
     if (!isAuthorized) {
       // User is not authorized - revert checkbox back to checked
+      console.log('User not authorized - reverting checkbox');
       Utilities.sleep(100);
       checkboxCell.setValue(true);
       
@@ -465,15 +543,18 @@ function handleCheckboxUnchecked(sheet, row, checkboxColumn, config) {
     }
     
     // User is authorized - clear the signature
+    console.log('User authorized - clearing signature');
     setStatus(statusCell, config.DEFAULT_STATUS_TEXT, config.DEFAULT_FONT_COLOR);
     
     // Clear from cache
     cacheStatusValue(sheet, row, statusColumn, null);
     
     console.log('Signature cleared by authorized user');
+    console.log('=== handleCheckboxUnchecked COMPLETED ===');
     
   } catch (error) {
     console.error('Error handling checkbox unchecked:', error);
+    console.error('Stack trace:', error.stack);
     // Revert checkbox on error
     Utilities.sleep(100);
     checkboxCell.setValue(true);
@@ -484,16 +565,26 @@ function handleCheckboxUnchecked(sheet, row, checkboxColumn, config) {
  * Verifies the active user and places their signature
  */
 function verifyAndSign(sheet, row, checkboxColumn, config) {
+  console.log('=== verifyAndSign STARTED ===');
+  console.log('Row:', row, 'Checkbox column:', checkboxColumn);
+  
   const statusColumn = getStatusColumnForCheckbox(checkboxColumn, config);
   const statusCell = sheet.getRange(row, statusColumn);
   const checkboxCell = sheet.getRange(row, checkboxColumn);
   
+  console.log('Status column for checkbox:', statusColumn);
+  
   try {
     // Check if there's already a cached value (already signed)
     const cachedValue = getCachedStatusValue(sheet, row, statusColumn);
+    console.log('Existing cached value:', cachedValue);
+    
     if (cachedValue) {
       // Already signed - check if user is authorized to re-sign
+      console.log('Already signed - checking authorization for re-sign');
       const isAuthorized = isUserAuthorizedForStatus(sheet, row, statusColumn, config);
+      console.log('User authorized to re-sign:', isAuthorized);
+      
       if (!isAuthorized) {
         handleError(checkboxCell, statusCell, '❌ Нет прав на переподпись', config);
         return;
@@ -503,14 +594,18 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // ═══════════════════════════════════════════════════════
     // STEP 1: Initialize
     // ═══════════════════════════════════════════════════════
+    console.log('Step 1: Initializing...');
     setStatus(statusCell, '🔄 Проверка...', config.COLOR_PROCESSING);
     
     // ═══════════════════════════════════════════════════════
     // STEP 2: Get active user email
     // ═══════════════════════════════════════════════════════
+    console.log('Step 2: Getting active user email...');
     const activeUserEmail = Session.getActiveUser().getEmail().toLowerCase();
+    console.log('Active user email:', activeUserEmail);
     
     if (!activeUserEmail) {
+      console.log('❌ No active user email found');
       handleError(checkboxCell, statusCell, '❌ Ошибка авторизации', config);
       return;
     }
@@ -520,13 +615,16 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // ═══════════════════════════════════════════════════════
     // STEP 3: Search in reference data using named range
     // ═══════════════════════════════════════════════════════
+    console.log('Step 3: Searching in reference data...');
     const dataRange = sheet.getParent().getRangeByName(config.DATA_RANGE_NAME);
     
     if (!dataRange) {
+      console.log('❌ Data range not found:', config.DATA_RANGE_NAME);
       handleError(checkboxCell, statusCell, '❌ Набор данных не найден', config);
       return;
     }
     
+    console.log('Data range found:', dataRange.getA1Notation());
     const data = dataRange.getValues();
     
     let userSignature = null;
@@ -539,11 +637,13 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
       if (dataEmail && dataEmail.toString().toLowerCase() === activeUserEmail) {
         userSignature = data[i][3]; // Signature is in 4th column (index 3)
         userName = data[i][1];      // Name is in 2nd column (index 1)
+        console.log('Found user in data range:', { userName, userSignature });
         break;
       }
     }
     
     if (!userSignature) {
+      console.log('❌ User signature not found for email:', activeUserEmail);
       handleError(checkboxCell, statusCell, '❌ Email не найден', config);
       return;
     }
@@ -553,33 +653,47 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // ═══════════════════════════════════════════════════════
     // STEP 4: Verify signer matches expected person
     // ═══════════════════════════════════════════════════════
+    console.log('Step 4: Verifying name match...');
     const nameColumn = getNameColumnForStatus(statusColumn, config);
+    console.log('Name column for status:', nameColumn);
+    
     const expectedName = sheet.getRange(row, nameColumn).getValue();
+    console.log('Expected name from sheet:', expectedName);
+    console.log('User name from data:', userName);
     
     if (!expectedName || expectedName.toString().trim() === '') {
+      console.log('❌ No expected name in name column');
       handleError(checkboxCell, statusCell, '❌ Имя не указано', config);
       return;
     }
     
     if (!nameMatches(expectedName, userName)) {
+      console.log('❌ Name mismatch');
       handleError(checkboxCell, statusCell, '❌ Нет прав на подпись', config);
       return;
     }
+    
+    console.log('✓ Name match verified successfully');
     
     // ═══════════════════════════════════════════════════════
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
     const successMessage = userSignature + ' ' + timestamp;
+    console.log('Success message:', successMessage);
     
     setStatus(statusCell, successMessage, config.COLOR_SUCCESS);
     
     // Cache the successful signature
     cacheStatusValue(sheet, row, statusColumn, successMessage);
     
+    console.log('✓ Signature successful and cached');
+    console.log('=== verifyAndSign COMPLETED ===');
+    
   } catch (error) {
+    console.error('❌ ERROR in verifyAndSign:', error);
+    console.error('Stack trace:', error.stack);
     handleError(checkboxCell, statusCell, '❌ Ошибка', config);
-    console.error('Signature error:', error);
   }
 }
 
@@ -587,6 +701,7 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
  * Sets status cell with color
  */
 function setStatus(cell, text, color) {
+  console.log('Setting status:', { text, color });
   cell.setValue(text).setFontColor(color);
   SpreadsheetApp.flush();
 }
@@ -595,14 +710,20 @@ function setStatus(cell, text, color) {
  * Handles errors: resets checkbox, shows error, resets to default text after 5 sec
  */
 function handleError(checkboxCell, statusCell, errorText, config) {
+  console.log('handleError called:', errorText);
+  
   checkboxCell.setValue(false);
   setStatus(statusCell, errorText, config.COLOR_ERROR);
+  
+  console.log('Error shown, will reset in 5 seconds...');
   
   // Wait 5 seconds then reset to default text
   Utilities.sleep(5000);
   statusCell.setValue(config.DEFAULT_STATUS_TEXT)
             .setFontColor(config.DEFAULT_FONT_COLOR);
   SpreadsheetApp.flush();
+  
+  console.log('Error reset to default text');
 }
 
 /**
@@ -615,12 +736,16 @@ function nameMatches(shortName, fullName) {
   const full = fullName.toString().trim().toLowerCase();
   
   // Exact match
-  if (short === full) return true;
+  if (short === full) {
+    console.log('Exact name match');
+    return true;
+  }
   
   // Check surname match (first word)
   const shortSurname = short.split(/[\s\.]+/)[0];
   const fullSurname = full.split(/[\s\.]+/)[0];
   
+  console.log('Comparing surnames:', shortSurname, 'vs', fullSurname);
   return shortSurname === fullSurname;
 }
 
@@ -628,48 +753,64 @@ function nameMatches(shortName, fullName) {
  * Test function to verify configuration
  */
 function testConfiguration() {
-  const config = getConfig();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(config.SHEET_NAME);
-  
-  if (!sheet) {
-    throw new Error(`Sheet "${config.SHEET_NAME}" not found!`);
-  }
-  
-  const dataRange = ss.getRangeByName(config.DATA_RANGE_NAME);
-  if (!dataRange) {
-    throw new Error(`Named range "${config.DATA_RANGE_NAME}" not found!`);
-  }
-  
-  // Parse the ranges for display
-  const checkboxCols = parseRangeString(config.CHECKBOX_COLUMNS);
-  const statusCols = parseRangeString(config.STATUS_COLUMNS);
-  const nameCols = parseRangeString(config.NAME_COLUMNS);
-  const rowRanges = parseRangeString(config.ROW_RANGES);
-  
-  console.log('Configuration test passed:');
-  console.log(`- Sheet: ${config.SHEET_NAME} ✓`);
-  console.log(`- Named range: ${config.DATA_RANGE_NAME} ✓`);
-  console.log(`- Data range size: ${dataRange.getNumRows()} rows x ${dataRange.getNumColumns()} columns`);
-  console.log(`- Checkbox columns: ${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${checkboxCols.join(', ')})`);
-  console.log(`- Status columns: ${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${statusCols.join(', ')})`);
-  console.log(`- Name columns: ${nameCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${nameCols.join(', ')})`);
-  console.log(`- Processing rows: ${rowRanges.join(', ')}`);
-  
-  SpreadsheetApp.getActiveSpreadsheet().toast('Конфигурация проверена успешно!', '✓ Тест', 3);
-  
-  return {
-    success: true,
-    message: 'Configuration test passed!',
-    details: {
-      sheet: config.SHEET_NAME,
-      dataRange: config.DATA_RANGE_NAME,
-      checkboxColumns: `${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.CHECKBOX_COLUMNS})`,
-      statusColumns: `${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.STATUS_COLUMNS})`,
-      nameColumns: `${nameCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.NAME_COLUMNS})`,
-      rowRanges: rowRanges.join(', ') + ` (${config.ROW_RANGES})`
+  try {
+    console.log('=== testConfiguration STARTED ===');
+    
+    const config = getConfig();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(config.SHEET_NAME);
+    
+    if (!sheet) {
+      throw new Error(`Sheet "${config.SHEET_NAME}" not found!`);
     }
-  };
+    
+    console.log('✓ Sheet found:', config.SHEET_NAME);
+    
+    const dataRange = ss.getRangeByName(config.DATA_RANGE_NAME);
+    if (!dataRange) {
+      throw new Error(`Named range "${config.DATA_RANGE_NAME}" not found!`);
+    }
+    
+    console.log('✓ Data range found:', config.DATA_RANGE_NAME);
+    console.log('Data range size:', dataRange.getNumRows(), 'rows x', dataRange.getNumColumns(), 'columns');
+    
+    // Parse the ranges for display
+    const checkboxCols = parseRangeString(config.CHECKBOX_COLUMNS);
+    const statusCols = parseRangeString(config.STATUS_COLUMNS);
+    const nameCols = parseRangeString(config.NAME_COLUMNS);
+    const rowRanges = parseRangeString(config.ROW_RANGES);
+    
+    console.log('Configuration test passed:');
+    console.log(`- Sheet: ${config.SHEET_NAME} ✓`);
+    console.log(`- Named range: ${config.DATA_RANGE_NAME} ✓`);
+    console.log(`- Data range size: ${dataRange.getNumRows()} rows x ${dataRange.getNumColumns()} columns`);
+    console.log(`- Checkbox columns: ${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${checkboxCols.join(', ')})`);
+    console.log(`- Status columns: ${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${statusCols.join(', ')})`);
+    console.log(`- Name columns: ${nameCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${nameCols.join(', ')})`);
+    console.log(`- Processing rows: ${rowRanges.join(', ')}`);
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast('Конфигурация проверена успешно!', '✓ Тест', 3);
+    
+    console.log('=== testConfiguration COMPLETED ===');
+    
+    return {
+      success: true,
+      message: 'Configuration test passed!',
+      details: {
+        sheet: config.SHEET_NAME,
+        dataRange: config.DATA_RANGE_NAME,
+        checkboxColumns: `${checkboxCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.CHECKBOX_COLUMNS})`,
+        statusColumns: `${statusCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.STATUS_COLUMNS})`,
+        nameColumns: `${nameCols.map(c => String.fromCharCode(64 + c)).join(', ')} (${config.NAME_COLUMNS})`,
+        rowRanges: rowRanges.join(', ') + ` (${config.ROW_RANGES})`
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ ERROR in testConfiguration:', error);
+    console.error('Stack trace:', error.stack);
+    throw error;
+  }
 }
 
 // ============================================
