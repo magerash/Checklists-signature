@@ -679,7 +679,7 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    const successMessage = userSignature + ' ' + timestamp;
+    const successMessage = userSignature + 'Подписано: ' + timestamp;
     console.log('Success message:', successMessage);
     
     setStatus(statusCell, successMessage, config.COLOR_SUCCESS);
