@@ -9,7 +9,7 @@
 // ============================================
 const CONFIG = {
   // Sheet names and ranges
-  SHEET_NAME: 'II. Чек-лист стадии концепции',  // Main working sheet
+  SHEET_NAME: 'V. Чек-лист стадии концепции',  // Main working sheet
   DATA_RANGE_NAME: 'dt_sign_allData',         // Named range for signature data
   
   // Column indexes (1 = A, 2 = B, etc.)
@@ -679,7 +679,7 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    const successMessage = userSignature + 'Подписано: ' + timestamp;
+    const successMessage = 'Подписано: ' + timestamp;
     console.log('Success message:', successMessage);
     
     setStatus(statusCell, successMessage, config.COLOR_SUCCESS);
