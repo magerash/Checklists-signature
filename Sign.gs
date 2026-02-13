@@ -9,7 +9,7 @@
 // ============================================
 const CONFIG = {
   // Sheet names and ranges
-  SHEET_NAME: 'II. Чек-лист стадии концепции',  // Main working sheet
+  SHEET_NAME: 'V. Чек-лист стадии концепции',  // Main working sheet
   DATA_RANGE_NAME: 'dt_sign_allData',         // Named range for signature data
   
   // Column indexes (1 = A, 2 = B, etc.)
@@ -679,7 +679,7 @@ function verifyAndSign(sheet, row, checkboxColumn, config) {
     // SUCCESS!
     // ═══════════════════════════════════════════════════════
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm');
-    const successMessage = userSignature + 'Подписано: ' + timestamp;
+    const successMessage = 'Подписано: ' + timestamp;
     console.log('Success message:', successMessage);
     
     setStatus(statusCell, successMessage, config.COLOR_SUCCESS);
@@ -813,6 +813,173 @@ function testConfiguration() {
   }
 }
 
+// ==================================================
+// CONFIGURATION – change only if needed
+//==================================================
+const FORCE_SEPARATOR = null;          // set to ',' or ';' to override auto‑detection
+const MIN_ID_LENGTH = 20;             // some IDs are shorter than 30
+const HELPER_SHEET_NAME = '👮Помощник'; // имя листа‑помощника
+const HIGHLIGHT_COLOR = '#cfe2ff';    // светло‑синий фон для ячеек‑заглушек
+// ==================================================
+
+/**
+ * 🚀 Request Access to All Linked Sheets
+ * - Ищет ВСЕ существующие формулы IMPORTRANGE на всех листах (включая скрытые)
+ * - Раскрывает непрямые ссылки на ячейки (например, =IMPORTRANGE(A1; ...))
+ * - Записывает формулы‑заглушки в столбец C листа «👮Помощник», начиная с C4
+ * - Ячейки с формулами заливаются синим фоном для наглядности
+ * - Сетка листа‑помощника скрыта
+ */
+function batchRequestAccess() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const allSheets = ss.getSheets();
+  const separator = getArgumentSeparator();
+
+  // --- ШАГ 1: СОЗДАЁМ ЛИСТ‑ПОМОЩНИК ---
+  let helper = ss.getSheetByName(HELPER_SHEET_NAME);
+  if (helper) {
+    helper.clear();
+    if (helper.isSheetHidden()) helper.showSheet();
+  } else {
+    helper = ss.insertSheet(HELPER_SHEET_NAME);
+  }
+  helper.showSheet();
+  
+  // --- Скрываем сетку листа (убираем границы ячеек) ---
+  helper.setHiddenGridlines(true);
+
+  // --- ШАГ 2: СОБИРАЕМ ВСЕ URL ИСТОЧНИКОВ IMPORTRANGE (С ПОМОЩЬЮ TEXTFINDER) ---
+  const sourceUrls = new Set();
+
+  allSheets.forEach(sheet => {
+    if (sheet.getName() === HELPER_SHEET_NAME) return;
+
+    // 🔍 Ищем каждую ячейку, содержащую "IMPORTRANGE" (без учёта регистра)
+    const finder = sheet.createTextFinder('IMPORTRANGE');
+    finder.matchCase(false);
+    finder.matchFormulaText(true);      // ищем внутри формул
+    finder.matchEntireCell(false);
+    const cells = finder.findAll();
+
+    cells.forEach(cell => {
+      const formula = cell.getFormula();
+      const value = cell.getDisplayValue();
+
+      // 1. Пробуем извлечь прямой URL / строку в кавычках
+      let url = extractSourceUrl(formula, MIN_ID_LENGTH) || extractSourceUrl(value, MIN_ID_LENGTH);
+      // 2. Если не нашли – ищем непрямые ссылки на ячейки
+      if (!url) {
+        url = resolveImportRangeSource(formula, cell.getSheet(), allSheets, MIN_ID_LENGTH);
+      }
+      if (url) sourceUrls.add(url);
+    });
+  });
+
+  if (sourceUrls.size === 0) {
+    SpreadsheetApp.getUi().alert('⚠️ Формулы IMPORTRANGE не найдены.');
+    return;
+  }
+
+  // --- ШАГ 3: ЗАПИСЫВАЕМ ФОРМУЛЫ‑ЗАГЛУШКИ С СИНИМ ФОНОМ ---
+  const urlList = Array.from(sourceUrls);
+  urlList.forEach((url, idx) => {
+    const row = 4 + idx;
+    const col = 3; // C
+    const cell = helper.getRange(row, col);
+    
+    // Устанавливаем формулу с правильным разделителем
+    cell.setFormula(`=IMPORTRANGE("${url}"${separator} "A1")`);
+    
+    // Заливаем ячейку синим цветом
+    cell.setBackground(HIGHLIGHT_COLOR);
+    
+    // Принудительно вычисляем – это вызовет запрос разрешения
+    try { cell.getValue(); } catch (e) { /* запрос разрешения активирован */ }
+  });
+
+  // --- ШАГ 4: ФИНАЛЬНОЕ УВЕДОМЛЕНИЕ (НА РУССКОМ) ---
+  SpreadsheetApp.getUi().alert(
+    `✅ Запросы доступа отправлены для ${urlList.length} уникальных исходных таблиц.\n\n` +
+    `👉 Найдите ячейки с **синим фоном** в столбце C листа «${HELPER_SHEET_NAME}» (начиная с C4).\n` +
+    `   Нажмите на каждую ячейку и разрешите доступ, когда появится синяя кнопка «Разрешить доступ».\n\n` +
+    `После предоставления доступа лист «${HELPER_SHEET_NAME}» можно скрыть или удалить.`
+  );
+}
+
+// ==================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений)
+// ==================================================
+
+function getArgumentSeparator() {
+  if (FORCE_SEPARATOR) return FORCE_SEPARATOR;
+  const locale = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale();
+  const semicolonLocales = ['ru','uk','be','kk','de','fr','it','es','pt','nl','sv','no','da','fi','pl','cs','sk','hu','ro','bg','sr','hr','sl','el','tr','ar','he','vi','th'];
+  const lang = locale.split('_')[0];
+  return semicolonLocales.includes(lang) ? ';' : ',';
+}
+
+function isGoogleSheetsId(str, minLength = 20) {
+  const regex = new RegExp(`^[a-zA-Z0-9_-]{${minLength},}$`);
+  return regex.test(str);
+}
+
+function extractSourceUrl(input, minLength = 20) {
+  if (!input) return null;
+
+  // 1. Полный URL Google Sheets с ID (гибкая длина)
+  const urlPattern = new RegExp(`(https:\\/\\/docs\\.google\\.com\\/spreadsheets\\/d\\/[a-zA-Z0-9_-]{${minLength},})`);
+  const urlMatch = input.match(urlPattern);
+  if (urlMatch) return urlMatch[1];
+
+  // 2. «Голый» ID (без префикса)
+  if (isGoogleSheetsId(input, minLength)) {
+    return `https://docs.google.com/spreadsheets/d/${input}`;
+  }
+
+  // 3. Строка в кавычках
+  const quotedMatch = input.match(/"([^"]+)"/);
+  if (quotedMatch) return extractSourceUrl(quotedMatch[1], minLength);
+
+  return null;
+}
+
+function resolveImportRangeSource(formula, sheet, allSheets, minLength = 20) {
+  // Сначала пробуем прямое извлечение
+  let url = extractSourceUrl(formula, minLength);
+  if (url) return url;
+
+  // Ищем все ссылки на ячейки (например, A1, 'Лист'!B2)
+  const cellRefRegex = /(?:'?([^'!]+)'?!)?([A-Z]+[0-9]+)/g;
+  let match;
+  while ((match = cellRefRegex.exec(formula)) !== null) {
+    const sheetName = match[1];
+    const a1Notation = match[2];
+
+    let targetSheet = sheet;
+    if (sheetName) {
+      const cleanName = sheetName.replace(/^'+|'+$/g, '');
+      targetSheet = allSheets.find(s => s.getName() === cleanName);
+      if (!targetSheet) continue;
+    }
+
+    try {
+      const range = targetSheet.getRange(a1Notation);
+      const value = range.getDisplayValue();
+      const resolved = extractSourceUrl(value, minLength);
+      if (resolved) return resolved;
+    } catch (e) {
+      // игнорируем неверные диапазоны
+    }
+  }
+  return null;
+}
+
+function removeHelperSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const helper = ss.getSheetByName('_perm_helper');
+  if (helper) ss.deleteSheet(helper);
+}
+
 // ============================================
 // HTML CONFIGURATION INTERFACE
 // ============================================
@@ -828,6 +995,8 @@ function onOpen() {
     .addItem('🔧 Установить триггеры', 'installTrigger')
     .addSeparator()
     .addItem('✅ Проверить конфигурацию', 'testConfiguration')
+    .addItem('🔁 Запрос доступа ко всем ссылкам', 'batchRequestAccess')
+    .addItem('🧹 Remove helper sheet', 'removeHelperSheet')
     .addToUi();
 }
 
