@@ -899,9 +899,9 @@ function batchRequestAccess() {
 
   // --- ШАГ 4: ФИНАЛЬНОЕ УВЕДОМЛЕНИЕ (НА РУССКОМ) ---
   SpreadsheetApp.getUi().alert(
-    `✅ Запросы доступа отправлены для ${urlList.length} уникальных исходных таблиц.\n\n` +
+    `✅ Запросы доступа обработаны для ${urlList.length} уникальных исходных таблиц.\n\n` +
     `👉 Найдите ячейки с **синим фоном** в столбце C листа «${HELPER_SHEET_NAME}» (начиная с C4).\n` +
-    `   Нажмите на каждую ячейку и разрешите доступ, когда появится синяя кнопка «Разрешить доступ».\n\n` +
+    `   Нажмите на каждую ячейку и разрешите доступ, когда появится кнопка «Открыть доступ».\n\n` +
     `После предоставления доступа лист «${HELPER_SHEET_NAME}» можно скрыть или удалить.`
   );
 }
@@ -976,7 +976,7 @@ function resolveImportRangeSource(formula, sheet, allSheets, minLength = 20) {
 
 function removeHelperSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const helper = ss.getSheetByName('_perm_helper');
+  const helper = ss.getSheetByName(HELPER_SHEET_NAME);
   if (helper) ss.deleteSheet(helper);
 }
 
@@ -989,14 +989,13 @@ function removeHelperSheet() {
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('⚙️ Подпись')
-    .addItem('📋 Конфигурация', 'showConfigPanel')
+  ui.createMenu('⚙️ Паспорт')
+    .addItem('📋 Конфигурация подписи', 'showConfigPanel')
+    .addItem('🔧 Установить триггеры для подписи', 'installTrigger')
+    .addItem('✅ Проверить конфигурацию подписи', 'testConfiguration')
     .addSeparator()
-    .addItem('🔧 Установить триггеры', 'installTrigger')
-    .addSeparator()
-    .addItem('✅ Проверить конфигурацию', 'testConfiguration')
     .addItem('🔁 Запрос доступа ко всем ссылкам', 'batchRequestAccess')
-    .addItem('🧹 Remove helper sheet', 'removeHelperSheet')
+    .addItem('🧹 Удалить лист помощника доступа к ссылкам', 'removeHelperSheet')
     .addToUi();
 }
 
